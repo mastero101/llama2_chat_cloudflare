@@ -14,6 +14,7 @@ public class ChatApp extends JFrame {
     private JTextField messageField;
     private JTextPane chatPane;
     private StringBuilder chatContent;
+    private JLabel loadingLabel;
 
     public ChatApp() {
         setTitle("Chat App");
@@ -21,24 +22,30 @@ public class ChatApp extends JFrame {
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
-        messageField = new JTextField();
-        JButton sendButton = new JButton("Enviar");
-        sendButton.addActionListener(new SendButtonListener());
-
-        JPanel inputPanel = new JPanel();
-        inputPanel.setLayout(new BorderLayout());
-        inputPanel.add(messageField, BorderLayout.CENTER);
-        inputPanel.add(sendButton, BorderLayout.EAST);
-
         chatPane = new JTextPane();
         chatPane.setEditable(false);
         chatPane.setContentType("text/html");
         chatContent = new StringBuilder();
 
         JScrollPane scrollPane = new JScrollPane(chatPane);
-
-        add(inputPanel, BorderLayout.NORTH);
         add(scrollPane, BorderLayout.CENTER);
+
+        JPanel bottomPanel = new JPanel();
+        bottomPanel.setLayout(new BorderLayout());
+
+        messageField = new JTextField();
+        messageField.addActionListener(new SendButtonListener());
+        bottomPanel.add(messageField, BorderLayout.CENTER);
+
+        JButton sendButton = new JButton("Enviar");
+        sendButton.addActionListener(new SendButtonListener());
+        bottomPanel.add(sendButton, BorderLayout.EAST);
+
+        loadingLabel = new JLabel("Cargando...", JLabel.CENTER);
+        loadingLabel.setVisible(false);
+        bottomPanel.add(loadingLabel, BorderLayout.SOUTH);
+
+        add(bottomPanel, BorderLayout.SOUTH);
     }
 
     private class SendButtonListener implements ActionListener {
@@ -46,12 +53,23 @@ public class ChatApp extends JFrame {
         public void actionPerformed(ActionEvent e) {
             String message = messageField.getText();
             if (!message.isEmpty()) {
-                String response = sendMessageToApi(message);
+                showLoadingIndicator(true);
                 displayChatMessage("User", message);
-                displayChatMessage("Bot", extractResponse(response));
-                messageField.setText("");
+                messageField.setText(""); // Limpiar el campo de entrada
+                new Thread(() -> {
+                    String response = sendMessageToApi(message);
+                    SwingUtilities.invokeLater(() -> {
+                        displayChatMessage("Bot", extractResponse(response));
+                        showLoadingIndicator(false);
+                        messageField.requestFocusInWindow();
+                    });
+                }).start();
             }
         }
+    }
+
+    private void showLoadingIndicator(boolean show) {
+        loadingLabel.setVisible(show);
     }
 
     private String extractResponse(String jsonResponse) {
@@ -105,6 +123,3 @@ public class ChatApp extends JFrame {
         });
     }
 }
-
-
-
